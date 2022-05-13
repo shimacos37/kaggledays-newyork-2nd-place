@@ -1,0 +1,113 @@
+defaults:
+  - hydra/job_logging: colorlog
+  - hydra/hydra_logging: colorlog
+  - feature: "001"
+
+workdir: ${store.workdir}
+seed: 777
+debug: False
+version: ${feature.version}
+per_unit: False
+
+data:
+  train_path: ${store.workdir}/input/${version}/train.pkl.gz
+  test_path: ${store.workdir}/input/${version}/test.pkl.gz
+
+lgbm:
+  n_fold: 5
+  feature_cols: ${feature.feature_cols}
+  cat_cols: ${feature.cat_cols}
+  label_col: ${feature.label_col}
+  pred_col: ${feature.pred_col}
+  early_stopping_rounds: 200
+  verbose_eval: 100
+  params:
+    num_iterations: 1000000
+    lambda_l1: 0.1
+    lambda_l2: 0.1
+    num_leaves: 32
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    bagging_freq: 1
+    min_child_samples: 10
+    task: train
+    boosting_type: gbdt
+    objective: multiclass
+    metric: multi_logloss
+    max_depth: 8
+    learning_rate: 0.01
+    num_thread: -1
+    max_bin: 256
+    verbose: -1
+    device: cpu
+    scale_pos_weight: 1
+    seed: ${seed}
+    num_class: 10
+
+catboost:
+  n_fold: 5
+  feature_cols: ${feature.feature_cols}
+  cat_cols: ${feature.cat_cols}
+  label_col: ${feature.label_col}
+  pred_col: ${feature.pred_col}
+  early_stopping_rounds: 200
+  verbose_eval: 100
+  categorical_features_indices:
+  params:
+    task_type: CPU
+    iterations: 100000
+    # max_leaves: 32
+    # subsample: 0.8
+    loss_function: MultiClass
+    eval_metric: TotalF1:average=Micro
+    max_depth: 8
+    learning_rate: 0.01
+    max_bin: 256
+    verbose: -1
+    devices: "0:1:2:3"
+    od_type: Iter
+    od_wait: Iter
+    random_seed: ${seed}
+    # bootstrap_type: Poisson
+
+xgb:
+  feature_cols: ${feature.feature_cols}
+  cat_cols: ${feature.cat_cols}
+  label_col: ${feature.label_col}
+  pred_col: ${feature.pred_col}
+  early_stopping_rounds: 200
+  verbose_eval: 100
+  params:
+    alpha: 0.1
+    reg_lambda: 0.1
+    max_leaves: 16
+    colsample_bytree: 1.0
+    subsample: 0.8
+    min_child_weight: 10
+    booster: gbtree
+    objective: binary:logistic
+    eval_metric: auc
+    max_depth: 6
+    learning_rate: 0.01
+    nthread: -1
+    max_bin: 256
+    tree_method: gpu_hist
+    scale_pos_weight: 1
+    seed: ${seed}
+    linear_tree: True
+
+store:
+  workdir: /root/workdir
+  model_name: exp${version}_lgbm
+  root_path: ${store.workdir}/output/${store.model_name}
+  save_path: ${store.workdir}/output/${store.model_name}
+  model_path: ${store.workdir}/output/${store.model_name}/model
+  log_path: ${store.workdir}/output/${store.model_name}/logs
+  result_path: ${store.workdir}/output/${store.model_name}/result
+  gcs_path: kaggledays_newyork/shimacos/${store.model_name}
+  gcs_project:
+  bucket_name: kaggledays_championship
+
+hydra:
+  run:
+    dir: ${store.save_path}
